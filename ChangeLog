@@ -1,0 +1,11 @@
+0.2.2
+- Minor bug fixes
+
+0.2.0
+- Use curl as default, wget as alternate
+
+0.1.5
+- First public release.
+
+0.1.0
+- Creation of this package.
