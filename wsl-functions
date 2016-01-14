@@ -1,0 +1,632 @@
+
+# ###########################################################################
+# Copyright (c) 2011, Dell Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+#    * Redistributions of source code must retain the above copyright
+#      notice, this list of conditions and the following disclaimer.
+#    * Redistributions in binary form must reproduce the above copyright
+#      notice, this list of conditions and the following disclaimer in the
+#      documentation and/or other materials provided with the distribution.
+#    * Neither the name of Dell Inc. nor the names of its contributors
+#      may be used to endorse or promote products derived from this software
+#      without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL DELL INC. BE LIABLE FOR ANY DIRECT,
+# INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+# IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# ###########################################################################
+# Authors:  Chris A. Poblete <Chris_Poblete@Dell.com>
+# ###########################################################################
+
+
+# **********************************************************************
+# ***                                                                ***
+# *** Define "WSLNOINIT" to source this file without initializations ***
+# ***                                                                ***
+# **********************************************************************
+
+MYPATH=${0%/*}
+
+MYCONFIG=".wslrc"
+
+ENVOUTLEVEL=$OUTLEVEL
+ENVIPINTERACTIVE=$IPINTERACTIVE
+
+[ -e ${MYPATH}/${MYCONFIG} ] && . ${MYPATH}/${MYCONFIG}
+[ -e ~/${MYCONFIG} ] && . ~/${MYCONFIG}
+[ -e ./${MYCONFIG} ] && . ./${MYCONFIG}
+
+[ ! -z "$ENVOUTLEVEL" ] && OUTLEVEL=$ENVOUTLEVEL
+[ ! -z "$ENVIPINTERACTIVE" ] && IPINTERACTIVE=$ENVIPINTERACTIVE
+
+# **************************************************************
+# *****                                                    *****
+# *****         User configuration specification           *****
+# *****                                                    *****
+# **************************************************************
+
+if [ ! -e ~/${MYCONFIG} ]; then
+  # prefer curl over wget
+  DRIVER="#USEWGET=true"
+  which curl 2>/dev/null >/dev/null
+  [ $? -ne 0 ] && DRIVER="USEWGET=true"
+
+  cat <<EOF > ~/${MYCONFIG}
+### NOTE: This is a generated file. See the accompanying README file for more info.
+### Comment the line to (1) use the default or (2) set to disabled.
+
+
+## Timeout in seconds waiting for response. { 1...600} Default is 180.
+#WGETTIMEOUTSECS=180
+
+## Number of retry when there is no response. { 1...6 } Default is 1.
+#WGETTRYNUM=1
+
+## Use HTTP connection. Default is use HTTPS. Uncomment var for HTTP.
+#WSNOSSL=true
+
+## Optimized enumeration, required for WSENUMMAXELEM. Default is none specified (none optimized).
+#WSENUMOPTIMIZE=true
+
+## Max number of instances in a response. { 1...1048576 } Default is 512.
+#WSENUMMAXELEM=512
+
+## WSMAN operation timeout in seconds. Default is none specified.
+#WSOPERATIONTIMEOUT=360
+
+## WSMAN maximum SOAP envelope size the client is willing to accept. Default is none specified.
+#WSMAXENVELOPESIZE=32767
+
+## Schema prefix used for non-DMTF class. Default is "schemas.dell.com"
+#WSDEFAULTSCHEMA="schemas.dell.com"
+
+## Interactive level: 0=NoAsk, 1=AskIPAddress, 2=AskIPandCredential. Default is 0.
+#IPINTERACTIVE=1
+
+## Remember IP address and user credential. Default is keep history. Uncomment var to prevent history use.
+#KEEPHISTORY=0
+
+## Show history when asking for an environment variable input. Undefined or 0 = no show, 1 show. Default is no show.
+#SHOWHISTORY=1
+
+## Display date-time stamp. Default is disabled.
+#DATETIMESTAMP=true
+
+## Formatted display of response XML. Default is disabled.
+#FORMATDISPLAY=true
+
+## Output level: 0=NoOutput, 1=ResponseOnly, 2=AddRequest, 3=AddMore. Default is 1.
+#OUTLEVEL=2
+
+## Output directory. Default is current directory.
+#OUTPREFIX=.
+
+## Log filename. Default is log.txt
+#LOGFILE="log.txt"
+
+## Result XML filename. Default response.xml
+#RETURNFILE="response.xml"
+
+## Echo back the command to console for debug purpose. Default is disabled.
+#ECHOCMD=true
+
+## CURL has HTTP1.1 support while WGET is widely available. Default is CURL
+${DRIVER}
+
+EOF
+fi
+
+# ***********************************************************
+# ***********************************************************
+# *****                                                 *****
+# *****                 S  T  O  P !!                   *****
+# *****                                                 *****
+# *****       DO NOT CHANGE, static values/code         *****
+# *****       unless you know what you are doing        *****
+# *****                                                 *****
+# ***********************************************************
+# ***********************************************************
+
+# Set defaults
+
+MYPNAME1="WSL"
+MYPNAME2="Wsman Shell commandLine"
+MYVERSION="0.2.2"
+
+[ -z "${OUTLEVEL}" ] && OUTLEVEL=1
+[ -z "${KEEPHISTORY}" ] && KEEPHISTORY=1
+[ -z "${SHOWHISTORY}" ] && SHOWHISTORY=0
+[ -z "${OUTPREFIX}" ] && OUTPREFIX=.
+[ -z "${LOGFILE}" ] && LOGFILE="log.txt"
+[ -z "${RETURNFILE}" ] && RETURNFILE="response.xml"
+[ -z "${WSDEFAULTSCHEMA}" ] && WSDEFAULTSCHEMA="schemas.dell.com"
+#[ -z "${RTFILEPREFIX}" ] && RTFILEPREFIX="${WSENDPOINT}"
+
+export URIDEFAULT="http://${WSDEFAULTSCHEMA}/wbem/wscim/1/cim-schema/2"
+export URIDMTF="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2"
+export WSENVELOPEHEADER='<?xml version="1.0"?><s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:wsa="http://schemas.xmlsoap.org/ws/2004/08/addressing" xmlns:wsman="http://schemas.dmtf.org/wbem/wsman/1/wsman.xsd" xmlns:wsen="http://schemas.xmlsoap.org/ws/2004/09/enumeration">'
+
+# complete pathfilenames
+if [ -z "${SETFLAG1}" ]; then
+  export SETFLAG1=1
+  export LOGFILE="${OUTPREFIX}/${LOGFILE}"
+  export RETURNFILE="${OUTPREFIX}/${RETURNFILE}"
+  export MYENV="${OUTPREFIX}/.wslrun"
+fi
+
+# if defined, add uniqueness in generated files to allow parallel executions in same directory
+if [ ! -z "${RTFILEPREFIX}" ] && [ -z "${SETFLAG2}" ]; then
+  export SETFLAG2=1
+  export RTFILEPREFIX="${RTFILEPREFIX}-"
+  export LOGFILE=$( echo ${LOGFILE} | sed -e "s/\(.*\)\//\1\/${RTFILEPREFIX}/" )
+  export RETURNFILE=$( echo ${RETURNFILE} | sed -e "s/\(.*\)\//\1\/${RTFILEPREFIX}/" )
+  export MYENV=$( echo ${MYENV} | sed -e "s/\(.*\)\./\.${RTFILEPREFIX}/" )
+fi
+
+[ ! -z "${DATETIMESTAMP}" ] && [ ${OUTLEVEL} -ge 3 ] && date
+
+echo -en | grep '\-en' >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+  export WSCOLORCMD="echo -en \\033[0;32m"
+  export WSCOLORREQ="echo -en \\033[0;31m"
+  export WSCOLORRSP="echo -en \\033[0;34m"
+  export WSCOLORWRN="echo -en \\033[0;36m"
+  export WSCOLORERR="echo -en \\033[0;35m"
+  export WSCOLORNORM="echo -en \\033[0;39m"
+else
+  export WSCOLORCMD="echo -n "
+  export WSCOLORREQ="echo -n "
+  export WSCOLORRSP="echo -n "
+  export WSCOLORWRN="echo -n "
+  export WSCOLORERR="echo -n "
+  export WSCOLORNORM="echo -n "
+fi
+
+fUsageheader() {
+  ${WSCOLORERR}
+  cat <<EOF
+${MYPNAME1}
+${MYPNAME2}, version ${MYVERSION}
+EOF
+  [ ! -z "${vSubtitle}" ] && echo "${vSubtitle}"
+  echo
+}
+
+CommonUsage1=`cat <<EOF
+Output will be saved to ${RETURNFILE}. If you want to run parallel 
+executions in the same directory, define RTFILEPREFIX in the environment. 
+Doing so may significantly increase files generated.
+
+Requires: curl, xmllint, GNU core utilities.
+Optional: xsltproc for output formatting, gpg for encrypted credential.
+Optional: wget as alternate for curl when not available. 
+EOF`
+
+fInitWGET() {
+  if [ -z "${WGETTIMEOUTSECS}" ] || [ ` echo "${WGETTIMEOUTSECS}" | grep "^[0-9]\{1,\}$" >/dev/null ; echo $? | grep -v '^0$' ` ]; then
+    WGETTIMEOUTSECS=180
+  else
+    [ ${WGETTIMEOUTSECS} -lt 1 ] && WGETTIMEOUTSECS=1
+    [ ${WGETTIMEOUTSECS} -gt 600 ] && WGETTIMEOUTSECS=600
+  fi
+
+  if [ -z "${WGETTRYNUM}" ] || [ ` echo "${WGETTRYNUM}" | grep "^[0-9]\{1,\}$" >/dev/null ; echo $? | grep -v '^0$' ` ]; then
+    WGETTRYNUM=1
+  else
+    [ ${WGETTRYNUM} -lt 1 ] && WGETTRYNUM=1
+    [ ${WGETTRYNUM} -gt 6 ] && WGETTRYNUM=6
+  fi
+  unset WSOPT_OPERATIONTIMEOUT
+  if [ ! -z "${WSOPERATIONTIMEOUT}" ]; then
+    WSOPT_OPERATIONTIMEOUT="<wsman:OperationTimeout>PT${WSOPERATIONTIMEOUT}.000S</wsman:OperationTimeout>"
+  fi
+  unset WSOPT_WSMAXENVELOPESIZE
+  if [ ! -z "${WSMAXENVELOPESIZE}" ]; then
+    WSOPT_WSMAXENVELOPESIZE="<wsman:MaxEnvelopeSize s:mustUnderstand=\"true\">${WSMAXENVELOPESIZE}</wsman:MaxEnvelopeSize>"
+  fi
+}
+
+fInitEnum() {
+  if [ ! -z "${WSENUMMAXELEM}" ]; then
+    if [ ` echo "${WSENUMMAXELEM}" | grep "^[0-9]\{1,\}$" >/dev/null ; echo $? | grep -v 0 ` ]; then
+      WSENUMMAXELEM=512
+    else
+      [ ${WSENUMMAXELEM} -lt 1 ] && WSENUMMAXELEM=1
+      [ ${WSENUMMAXELEM} -gt 1048576 ] && WSENUMMAXELEM=1048576
+    fi
+  fi
+
+  if [ ! -z "${WSENUMOPTIMIZE}" ]; then
+    WSENUMOPTIMIZEDSTR="<wsman:OptimizeEnumeration />"
+    if [ ! -z "${WSENUMMAXELEM}" ]; then 
+      WSENUMMAXELEMSTR="<wsman:MaxElements>${WSENUMMAXELEM}</wsman:MaxElements>"
+      WSPULLMAXELEMSTR="<wsen:MaxElements>${WSENUMMAXELEM}</wsen:MaxElements>"
+    fi
+  fi
+}
+
+[ -z "${WSLNOINIT}" ] && fInitWGET
+[ -z "${WSLNOINIT}" ] && fInitEnum
+
+unset TIMERSTART
+fTimerInit() {
+  export TIMERSTART=`date +%s`
+}
+
+fTimerPrint() {
+  if [ -z "${TIMERSTART}" ]; then
+    echo "TIMER not initialized"
+    return
+  fi
+  TIMERSTOP=`date +%s`
+  TIMERDIFF=$((TIMERSTOP - TIMERSTART))
+  ((h=TIMERDIFF/3600))
+  ((m=TIMERDIFF%3600/60))
+  ((s=TIMERDIFF%60))
+  printf "Elapsed time: %dh:%dm:%ds\n" $h $m $s
+}
+
+fPromptUser() {
+   AlwaysAsk="$1"
+   Arg=$2
+   Question=$3
+   temp=128
+   if [ ! -z "$4" ]; then
+     if [ ` echo "$4" | grep "^[0-9]\{1,\}$" >/dev/null ; echo $? | grep 0 ` ]; then
+         temp=$4
+      else
+         default="$4"
+      fi
+   fi
+   #shell in BSD chokes on -n argument
+   #Len="-n ${temp} -e "
+   Len="-e"
+   temp=$(eval echo \$${Arg})
+   [ ! -z "${temp}" ] && default=${temp}
+   temp=
+   if [ ! "${AlwaysAsk}" = "0" -o "${default}." = "." ]; then
+      if [ "${default}." = "." -o ! "${WSDONTASK}" = "y" ]; then
+         if [ -e "${MYENV}" ] && [ "1" = "${SHOWHISTORY}" ]; then
+            echo -e "\nPrevious Values:"
+            grep "${Arg}" ${MYENV} | cut -d'=' -f2 | sed 's/"//g' | uniq | sort
+            echo
+         fi
+         while [ "${temp}." = "." ]; do
+            read ${Len} -p "${Question} (ENTER for default: ${default}) ? " temp
+            [ -z "${temp}" ] && temp=${default}
+         done
+         temp=$(echo ${temp} | sed 's/^"//' | sed 's/"$//')
+         export ${Arg}="${temp}"
+      else
+         temp=${default}
+      fi
+      if [ "1" = "${KEEPHISTORY}" ]; then
+        echo export "${Arg}=\"${temp}\"" >>${MYENV}
+        chmod go-rwx ${MYENV}
+      fi
+   else
+      temp=${default}
+   fi
+   temp=
+   default=
+}
+
+fGetUUID() {
+  UUID=`uuidgen`
+}
+
+## NOTES:
+## For more restriction, suggest to use the following but will need SUDO access
+## dmidecode | grep -i 'uuid:' | cut -d':' -f2 - | sed 's/ //g'
+##
+fCreateCredFile() {
+  credfile="$1"
+  echo "${WSUSER} ${WSPASS}" | gpg --armor -c --batch --passphrase=`uname -n` - >"${credfile}" 2>"${LOGFILE}"
+}
+
+fGetCredFileContents() {
+  credfile="$1"
+  which gpg 2>&1 >/dev/null 
+  if [ $? -eq 0 ]; then
+    export CREDPAIR=$(gpg -d --batch --passphrase=`uname -n` "${credfile}" 2>"${LOGFILE}")
+  else
+    $WSCOLORERR; echo "ERROR: can't decode credential, gpg not found"; $WSCOLORNORM
+    usage
+  fi
+}
+
+fSetWGET() {
+  WSIP=${WSENDPOINT}
+  WSCACERT="${WSENDPOINT}.crt"
+  `echo ${WSIP} | grep ':' >/dev/null 2>&1` || WSIP="${WSIP}:443"
+  XPORT="https"
+  CERTCHECK="--no-check-certificate"
+  [ -z "${USEWGET}" ] && CERTCHECK="--insecure"
+  [ -f "${WSCACERT}" ] && CERTCHECK="--cacert ${WSCACERT}"
+  [ ! -z "${WSNOSSL}" ] && XPORT="http" && unset CERTCHECK
+  [ -z "${WSENCODE}" ] && WSENCODE="utf-8"
+  export BURL="${XPORT}://${WSIP}/wsman"
+  echo "${WSUSER}" | grep "^FILE:" >/dev/null 2>&1
+  if [ $? -eq 0 ]; then
+    credfile=$(echo "${WSUSER}" | sed 's/^FILE://')
+    fGetCredFileContents "${credfile}"
+    WSUSER=$(echo "${CREDPAIR}" | awk '{print $1}')
+    WSPASS=$(echo "${CREDPAIR}" | awk '{print $2}')
+  fi
+  export WGOPT="${BURL} ${CERTCHECK} --http-user=${WSUSER} --http-password=${WSPASS} --timeout=${WGETTIMEOUTSECS} --tries=${WGETTRYNUM} --header='Content-Type: application/soap+xml;charset=${WSENCODE}' "
+  if [ -z "${USEWGET}" ]; then 
+    export WGOPT="${BURL} ${CERTCHECK} --user ${WSUSER}:${WSPASS} --retry ${WGETTRYNUM} --connect-timeout ${WGETTIMEOUTSECS} --max-time ${WGETTIMEOUTSECS} -H 'Content-Type: application/soap+xml;charset=${WSENCODE}' "
+    [ ${OUTLEVEL} -ge 3 ] && WGOPT="${WGOPT} -D - "
+  fi
+  unset WSPASS
+  #[ ${OUTLEVEL} -ge 3 ] && echo "using: ${WGOPT}"
+
+
+  export WSCOMMONHEADER=`cat <<EOF
+<wsa:To s:mustUnderstand="true">${BURL}</wsa:To>
+${WSOPT_WSMAXENVELOPESIZE}
+${WSOPT_OPERATIONTIMEOUT}
+EOF`
+}
+
+fSendRequest() {
+  ECHOSUB="${LOGFILE}"
+  [ ${OUTLEVEL} -ge 3 ] && ECHOSUB="/dev/stdout"
+
+  if [ ! -z "${USEWGET}" ]; then
+    echo "wget ${WGOPT} --post-file=${REQUESTFILE} --output-document=${RESPONSEFILE}" >>${ECHOSUB}
+    bash --norc -c "wget ${WGOPT} --post-file=${REQUESTFILE} --output-document=${RESPONSEFILE} >>${LOGFILE} 2>&1"
+  else
+    echo  "curl ${WGOPT} -d @${REQUESTFILE} -o ${RESPONSEFILE}" >>${ECHOSUB}
+    bash --norc -c "curl ${WGOPT} -d @${REQUESTFILE} -o ${RESPONSEFILE}  >>${LOGFILE} 2>&1"
+  fi
+}
+
+fReqRspNext() {
+   RRINDEX=$((RRINDEX + 1))
+   export REQUESTFILE="${OUTPREFIX}/${RTFILEPREFIX}request-${RRINDEX}.xml"
+   export RESPONSEFILE="${OUTPREFIX}/${RTFILEPREFIX}response-${RRINDEX}.xml"
+   cat /dev/null >${REQUESTFILE}
+   cat /dev/null >${RESPONSEFILE}
+}
+
+fDumpRequestFile() {
+  if [ ${OUTLEVEL} -ge 2 ]; then
+    $WSCOLORREQ
+    cat ${REQUESTFILE}
+    $WSCOLORNORM
+    [ ! -z "${DATETIMESTAMP}" ] && [ ${OUTLEVEL} -ge 3 ] && date
+  fi
+}
+
+fSearchValueOf() {
+  file=$1; shift
+  sindex=$1; shift
+  keys="$@"
+
+  unset PVALUE
+  active=0
+  found=1
+  while read -e line ; do
+    if [ ${active} -eq 0 ]; then
+      llower=$(echo "${line}" | awk '{print tolower($0)}')
+      [ ` echo "${llower}" | grep ":body" >/dev/null ; echo $? | grep 0 ` ] && active=1
+    else
+      flag=1 ; idx=0
+      for item in ${keys}; do
+        [ ${idx} -eq 0 ] && item=":${item}" && idx=$((idx + 1)) 
+        if [ ` echo "${line}" | grep "${item}" >/dev/null ; echo $? | grep -v 0 ` ]; then
+          flag=0
+          break
+        fi
+      done
+      if [ ${flag} -eq 1 ]; then
+        if [ ${found} -eq ${sindex} -o ${sindex} -eq 0 ]; then
+          export PVALUE=$(echo "${line}" | awk -F'>' '{print $2}' | awk -F"</" '{print $1}')
+          [ ${sindex} -ne 0 ] && break
+        fi
+        found=$((found + 1))
+      fi
+    fi
+  done < "${file}"
+}
+
+fGetFlatValueOfSingle() {
+  # Use this instead of fGetValueOf if you want to search for a single item without regard to hierarchy
+  # Specify "N" to index to locate the last occurance
+  file=$1
+  sindex=$2
+  key=$3 
+
+  sedpat="${sindex}p"
+  [ "${sindex}" = "N" ] && sedpat='$p'
+  export PVALUE=$( grep ":${key}" ${file} | sed -n ${sedpat} | cut -d'>' -f2 | cut -d'<' -f1 )
+}
+
+fGetValueOf() {
+  file=$1; shift
+  fSearchValueOf ${file} 0 $@
+  return
+}
+
+fGetInstanceToFile() {
+  file=$1
+  classname=$2
+  instfile=$3
+  [ -z "${instfile}" ] && return
+  echo >${instfile}
+  cstate=0
+  while read -e line ; do
+    if [ ` echo "${line}" | grep ":${classname}>" >/dev/null ; echo $? | grep 0 ` ]; then
+      cstate=$((cstate + 1))
+      if [ ${cstate} -eq 2 ]; then
+        break
+      else
+        export NSPREFIX=$(echo ${line} | awk -F':' '{print $1}' | awk -F'<' '{print $2}')
+      fi
+    elif [ ${cstate} -eq 1 ]; then
+      echo "${line}" >>${instfile}
+    fi
+  done < "${file}"
+}
+
+fGetEPRSELECTOR() {
+  file=$1
+  cstate=0
+  unset eprstr
+  while read -e line ; do
+    llower=$(echo "${line}" | awk '{print tolower($0)}')
+    if [ ` echo "${llower}" | grep ":referenceparameters" >/dev/null ; echo $? | grep 0 ` ]; then
+      cstate=$((cstate + 1))
+      if [ ${cstate} -eq 2 ]; then
+        break
+      fi
+    elif [ ${cstate} -eq 1 ]; then
+      if [ ` echo "${llower}" | grep ":resourceuri" >/dev/null ; echo $? | grep 0 ` ]; then
+        export RURI=$(echo "${line}" | awk -F'>' '{print $2}' | awk -F"</" '{print $1}')
+        export RCLASS=$(echo ${RURI} | awk -F'/' '{print $NF}')
+      else
+        eprstr="${eprstr}${line}"
+      fi
+    fi
+  done < "${file}"
+  export EPRSELECTORSTR="${eprstr}"
+}
+
+fExtractEPRXML() {
+  file=$1
+  cstate=0
+  unset eprstr
+  while read -e line ; do
+    llower=$(echo "${line}" | awk '{print tolower($0)}')
+    if [ ` echo "${llower}" | grep ":endpointreference" >/dev/null ; echo $? | grep 0 ` ]; then
+      cstate=$((cstate + 1))
+      if [ ${cstate} -eq 2 ]; then
+        break
+      fi
+    elif [ ${cstate} -eq 1 ]; then
+      eprstr="${eprstr}${line}"
+    fi
+  done < "${file}"
+  export EPRXML="${eprstr}"
+}
+
+fNormalizeXML() {
+  xml="$1"
+  if [ -s "${xml}" ]; then
+    grep 'soap-envelope' ${xml} >/dev/null 2>&1
+    if [ "$?" -eq "0" ]; then
+      tmp="${OUTPREFIX}/${RTFILEPREFIX}xform.xml"
+      /bin/mv "${xml}" "${tmp}"
+      cat "${tmp}" | xmllint --format - >"${xml}"
+    else
+      echo "file ${xml} is not in SOAP format, check the file and ${LOGFILE}."
+    fi 
+  else
+    echo "file ${xml} is empty, verify credentials and check ${LOGFILE}."
+  fi
+}
+
+fNormalizeClass() {
+  echo "${CLASS}" | grep '/' >/dev/null 2>&1
+  if [ $? -ne 0 ]; then
+    echo "${CLASS}" | grep -i "^cim_" >/dev/null 2>&1
+    if [ $? -ne 0 ]; then
+      export CLASS="${URIDEFAULT}/${CLASS}"
+    else
+      export CLASS="${URIDMTF}/${CLASS}"
+    fi
+  fi
+}
+
+fCheckReqOrUsage() {
+  name="$1"
+  which ${name} 2>/dev/null >/dev/null
+  [ $? -ne 0 ] && echo -e "Failed to detect ${name}! This is a runtime requirement, verify installation and try again.\n" && usage
+}
+
+fCheckReqsOrUsage() {
+  if [ ! -z "${USEWGET}" ]; then
+    fCheckReqOrUsage wget
+  else
+    fCheckReqOrUsage curl
+  fi
+  fCheckReqOrUsage xmllint
+} 
+
+XsLTSTAT=1 ; which xsltproc 2>&1 >/dev/null ; XsLTSTAT=$?
+
+fDisplayResponse() {
+  vFile="$1"
+  if [ ${OUTLEVEL} -ge 1 ]; then
+    ISSOAP=1; grep 'soap-envelope' ${vFile} >/dev/null 2>&1 ; ISSOAP=$?
+    $WSCOLORRSP
+    [ ${STAT} -ne 0 ] && $WSCOLORERR 
+    if [ -z "${FORMATDISPLAY}" ] || [ ${XsLTSTAT} -ne 0 ] || [ ${ISSOAP} -ne 0 ]; then
+      cat ${vFile} ; echo
+    else
+      cat ${vFile} | sed 's/^\s*//g' | tr -d '\n' | xsltproc ${MYPATH}/wsl-ws2textc.xsl -
+    fi
+    $WSCOLORNORM
+  fi
+  [ ! -z "${DATETIMESTAMP}" ] && [ ${OUTLEVEL} -ge 3 ] && date
+}
+
+fGetTarget() {
+  askA=0 ; askB=0
+  [ "${IPINTERACTIVE}" = "1" ] && askA=1
+  [ "${IPINTERACTIVE}" = "2" ] && askA=1 && askB=1
+  [ ! -z "${WSAUTOMATED}" ] && askA=0 && askB=0
+  fPromptUser $askA WSENDPOINT "IP address"
+  fPromptUser $askB WSUSER "User name"
+  echo "${WSUSER}" | grep "^FILE:" >/dev/null 2>&1
+  [ $? -ne 0 ] && fPromptUser $askB WSPASS "User password"
+}
+
+if [ -z "${WSLNOINIT}" ] && [ "1" = "${KEEPHISTORY}" ]; then
+   [ ${OUTLEVEL} -ge 3 ] && [ -e "${MYENV}" ] && echo "using values in ${MYENV}"
+   CWSENDPOINT="${WSENDPOINT}"
+   CWSUSER="${WSUSER}"
+   CWSPASS="${WSPASS}"
+   if [ -e "${MYENV}" ]; then
+     . ${MYENV}
+     cat ${MYENV} | grep -v "^#" | sort | uniq >temp
+   fi
+   echo "##### history ends #####" >>temp
+   /bin/mv temp ${MYENV}
+   [ -z "${CWSENDPOINT}" ] && CWSENDPOINT="${WSENDPOINT}"
+   [ -z "${CWSUSER}" ] && CWSUSER="${WSUSER}"
+   [ -z "${CWSPASS}" ] && CWSPASS="${WSPASS}"
+   cat <<EOF >>${MYENV}
+export WSENDPOINT="${CWSENDPOINT}"
+export WSUSER="${CWSUSER}"
+export WSPASS="${CWSPASS}"
+EOF
+   chmod go-rwx ${MYENV}
+   . ${MYENV}
+fi
+
+fMessageThenExit() {
+  message="$1"
+  exitcode=$2
+
+  echo -e "${message}"
+  exit ${exitcode}
+}
+
+# ###########################################################################
+# End of Code
+# ###########################################################################
